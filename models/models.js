@@ -1,47 +1,6 @@
 // Same text as the obj files in this folder.
 // A normal script so log_ride.html works when opened directly.
 const MODEL_SRC = {
-  cube: `# name cube
-# The starting cube, centered at the origin. Edges for views 1 and 2, triangles for view 3.
-v 1 1 1
-v -1 1 1
-v 1 -1 1
-v -1 -1 1
-v 1 1 -1
-v -1 1 -1
-v 1 -1 -1
-v -1 -1 -1
-# color #d5e6ef
-l 1 2
-l 2 4
-l 4 3
-l 3 1
-l 5 6
-l 6 8
-l 8 7
-l 7 5
-l 1 5
-l 2 6
-l 3 7
-l 4 8
-# color #4F8FD9
-f 1 2 4
-f 1 4 3
-# color #E15A4A
-f 5 6 8
-f 5 8 7
-# color #F2D35E
-f 1 3 7
-f 1 7 5
-# color #2E9B57
-f 2 4 8
-f 2 8 6
-# color #D5E6EF
-f 1 2 6
-f 1 6 5
-# color #8B5A2B
-f 3 4 8
-f 3 8 7`,
   log: `# name log
 # A log lying along Z, centered at the origin. Ride it down the river.
 # Octagonal prism with two end caps. Uniform scale is applied per instance.

@@ -14,7 +14,7 @@
 <header>
   <h1>Log Ride</h1>
   <div>Austin Heiss</div>
-  <p>Enter starts the ride and the log floats forward. Left/right steer, up speeds up. Hitting a lilypad or log ends the game, press Enter to go again. Lines behind the camera are skipped and the camera stops short of the cube.</p>
+  <p>Enter starts the ride and the log floats forward. Left/right steer, up speeds up. Hitting a lilypad or log ends the game, press Enter to go again. Lines behind the camera are skipped.</p>
   <p>Views: 1 canvas wireframe 1600x1000, 2 my own lines on a 320x200 pixel grid, 3 filled triangles with a depth buffer on the 320x200 grid.</p>
   <p id="info"></p>
 </header>
@@ -35,9 +35,9 @@ const PX = 5;
 const BG = "#050510";
 
 let models = {};
-let mode = "cube";
+let mode = "river";
 let view = 1;
-let camera = {x: 1, y: 0.6, z: -7};
+let camera = {x: 0, y: 2.6, z: -1.2};
 let instances = [];
 let grid = [];
 let depth = [];
@@ -142,7 +142,6 @@ function drawModel(inst) {
 
 function draw() {
   let scene = instances;
-  if (mode === "cube") scene = [{model: models.cube, x: 0, y: 0, z: 0, s: 1}];
   ctx.fillStyle = BG;
   ctx.fillRect(0, 0, W, H);
   ctx.lineWidth = 2;
@@ -227,11 +226,6 @@ function buildRiver() {
 
 function move(dx, dz) {
   if (mode === "over") return;
-  if (mode === "cube") {
-    camera.x += dx;
-    camera.z = Math.min(-1.8, camera.z + dz);
-    return;
-  }
   camera.x = Math.max(-5.6, Math.min(5.6, camera.x + dx));
   camera.z += dz;
   placeLog();
@@ -263,11 +257,11 @@ document.addEventListener("keydown", function (e) {
   draw();
 });
 
-models.cube = parseObj(MODEL_SRC.cube);
 models.log = parseObj(MODEL_SRC.log);
 models.lilypad = parseObj(MODEL_SRC.lilypad);
 models.wall = parseObj(MODEL_SRC.wall);
 models.water = parseObj(MODEL_SRC.water);
+buildRiver();
 draw();
 setInterval(floatForward, 50);
 </script>
