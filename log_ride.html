@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Log Ride</title>
+<style>
+  body { margin: 0; background: #050510; color: white; font-family: Arial, sans-serif; }
+  header { position: absolute; top: 0; left: 0; right: 0; padding: 12px 16px; line-height: 1.4; }
+  h1 { margin: 0; font-size: 22px; }
+  canvas { display: block; width: 100vw; height: 100vh; object-fit: contain; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Log Ride</h1>
+  <div>Austin Heiss</div>
+  <p>Enter starts the ride and the log floats forward. Left/right steer, up speeds up. Hitting a lilypad or log ends the game, press Enter to go again. Lines behind the camera are skipped and the camera stops short of the cube.</p>
+  <p>Views: 1 canvas wireframe 1600x1000, 2 my own lines on a 320x200 pixel grid, 3 filled triangles with a depth buffer on the 320x200 grid.</p>
+  <p id="info"></p>
+</header>
+<canvas id="canvas" width="1600" height="1000"></canvas>
+<script src="models/models.js"></script>
+<script>
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+const info = document.getElementById("info");
+
+const W = 1600;
+const H = 1000;
+const FOCAL = 900;
+const NEAR = 0.4;
+const GW = 320;
+const GH = 200;
+const PX = 5;
+const BG = "#050510";
+
+let models = {};
+let mode = "cube";
+let view = 1;
+let camera = {x: 1, y: 0.6, z: -7};
+let instances = [];
+let grid = [];
+let depth = [];
+
+function parseObj(text) {
+  let model = {vertices: [], edges: [], faces: []};
+  let color = "#ffffff";
+  let lines = text.split("\n");
+  for (let i = 0; i < lines.length; i++) {
+    let p = lines[i].trim().split(/\s+/);
+    if (p[0] === "#" && p[1] === "color") color = p[2];
+    if (p[0] === "v") model.vertices.push({x: Number(p[1]), y: Number(p[2]), z: Number(p[3])});
+    if (p[0] === "l") model.edges.push({a: p[1] - 1, b: p[2] - 1, color: color});
+    if (p[0] === "f") model.faces.push({a: p[1] - 1, b: p[2] - 1, c: p[3] - 1, color: color});
+  }
+  return model;
+}
+
+function project(v, inst) {
+  let width = W;
+  let height = H;
+  let focal = FOCAL;
+  if (view !== 1) {
+    width = GW;
+    height = GH;
+    focal = FOCAL / PX;
+  }
+  let x = inst.x + v.x * inst.s - camera.x;
+  let y = inst.y + v.y * inst.s - camera.y;
+  let z = inst.z + v.z * inst.s - camera.z;
+  if (z <= NEAR) return null;
+  return {u: x / z * focal + width / 2, v: height / 2 - y / z * focal, z: z};
+}
+
+function setPixel(x, y, color) {
+  if (x >= 0 && x < GW && y >= 0 && y < GH) grid[x][y] = color;
+}
+
+function plotLine(x0, y0, x1, y1, color) {
+  let steps = Math.max(1, Math.ceil(Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0))));
+  for (let i = 0; i <= steps; i++) {
+    let t = i / steps;
+    setPixel(Math.floor(x0 + (x1 - x0) * t), Math.floor(y0 + (y1 - y0) * t), color);
+  }
+}
+
+function edge(a, b, x, y) {
+  return (b.u - a.u) * (y - a.v) - (b.v - a.v) * (x - a.u);
+}
+
+function fillTriangle(p0, p1, p2, color) {
+  let area = edge(p0, p1, p2.u, p2.v);
+  if (area === 0) return;
+  let minX = Math.max(0, Math.floor(Math.min(p0.u, p1.u, p2.u)));
+  let maxX = Math.min(GW - 1, Math.floor(Math.max(p0.u, p1.u, p2.u)));
+  let minY = Math.max(0, Math.floor(Math.min(p0.v, p1.v, p2.v)));
+  let maxY = Math.min(GH - 1, Math.floor(Math.max(p0.v, p1.v, p2.v)));
+  for (let x = minX; x <= maxX; x++) {
+    for (let y = minY; y <= maxY; y++) {
+      let w0 = edge(p1, p2, x + 0.5, y + 0.5) / area;
+      let w1 = edge(p2, p0, x + 0.5, y + 0.5) / area;
+      let w2 = edge(p0, p1, x + 0.5, y + 0.5) / area;
+      if (w0 >= 0 && w1 >= 0 && w2 >= 0) {
+        let z = 1 / (w0 / p0.z + w1 / p1.z + w2 / p2.z);
+        if (z < depth[x][y]) {
+          depth[x][y] = z;
+          grid[x][y] = color;
+        }
+      }
+    }
+  }
+}
+
+function drawModel(inst) {
+  let m = inst.model;
+  if (view === 3) {
+    for (let i = 0; i < m.faces.length; i++) {
+      let f = m.faces[i];
+      let p0 = project(m.vertices[f.a], inst);
+      let p1 = project(m.vertices[f.b], inst);
+      let p2 = project(m.vertices[f.c], inst);
+      if (p0 && p1 && p2) fillTriangle(p0, p1, p2, f.color);
+    }
+    return;
+  }
+  for (let i = 0; i < m.edges.length; i++) {
+    let e = m.edges[i];
+    let p = project(m.vertices[e.a], inst);
+    let q = project(m.vertices[e.b], inst);
+    if (!p || !q) continue;
+    if (view === 2) {
+      plotLine(p.u, p.v, q.u, q.v, e.color);
+    } else {
+      ctx.strokeStyle = e.color;
+      ctx.beginPath();
+      ctx.moveTo(p.u, p.v);
+      ctx.lineTo(q.u, q.v);
+      ctx.stroke();
+    }
+  }
+}
+
+function draw() {
+  let scene = instances;
+  if (mode === "cube") scene = [{model: models.cube, x: 0, y: 0, z: 0, s: 1}];
+  ctx.fillStyle = BG;
+  ctx.fillRect(0, 0, W, H);
+  ctx.lineWidth = 2;
+  grid = [];
+  depth = [];
+  for (let x = 0; x < GW; x++) {
+    grid.push(new Array(GH).fill(BG));
+    depth.push(new Array(GH).fill(Infinity));
+  }
+  for (let i = 0; i < scene.length; i++) drawModel(scene[i]);
+  if (view !== 1) {
+    for (let x = 0; x < GW; x++) {
+      for (let y = 0; y < GH; y++) {
+        ctx.fillStyle = grid[x][y];
+        ctx.fillRect(x * PX, y * PX, PX, PX);
+      }
+    }
+  }
+  if (mode === "over") {
+    ctx.fillStyle = "white";
+    ctx.font = "bold 72px Arial";
+    ctx.textAlign = "center";
+    ctx.fillText("Game over", W / 2, H / 2);
+    ctx.fillText("Press Enter", W / 2, H / 2 + 90);
+  }
+  info.textContent = "Scene: " + mode + ". View " + view + ". Camera x " + camera.x.toFixed(1) + ", z " + camera.z.toFixed(1) + ".";
+}
+
+function placeLog() {
+  instances[0].x = camera.x;
+  instances[0].y = 0.55;
+  instances[0].z = camera.z + 4;
+}
+
+function hitSomething() {
+  let log = instances[0];
+  for (let i = 1; i < instances.length; i++) {
+    let o = instances[i];
+    let dx = Math.abs(log.x - o.x);
+    let dz = Math.abs(log.z - o.z) - 1.6;
+    if (o.kind === "log") {
+      if (dx < 0.45 + 0.45 * o.s && dz < 1.6 * o.s) return true;
+    }
+    if (o.kind === "pad") {
+      let px = Math.max(0, dx - 0.45);
+      let pz = Math.max(0, dz);
+      let r = 0.95 * o.s;
+      if (px * px + pz * pz < r * r) return true;
+    }
+  }
+  return false;
+}
+
+function addInstance(model, kind, x, y, z, s) {
+  instances.push({model: model, kind: kind, x: x, y: y, z: z, s: s});
+}
+
+function buildRiver() {
+  mode = "river";
+  camera = {x: 0, y: 2.6, z: -1.2};
+  instances = [];
+  addInstance(models.log, "log", 0, 0.55, 3, 1);
+  for (let z = -2; z <= 60; z += 2) {
+    addInstance(models.water, "water", 0, -0.1, z, 1);
+  }
+  let logs = [[0, 17, 0.8], [-2, 38, 1]];
+  for (let i = 0; i < logs.length; i++) {
+    addInstance(models.log, "log", logs[i][0], 0.45 * logs[i][2], logs[i][1], logs[i][2]);
+  }
+  let pads = [[-3.5, 10, 1], [3.5, 10, 1], [-5.2, 13.5, 0.8], [-4.5, 17, 1], [-1, 24, 1.2], [4, 24, 1],
+    [5.2, 27.5, 0.8], [1.5, 31, 1.1], [-4.5, 31, 1], [3, 38, 1], [-5.2, 41.5, 0.8], [-4, 45, 1], [0.5, 45, 1.2],
+    [5.2, 48.5, 0.8], [3, 52, 1.1], [-2, 52, 1]];
+  for (let i = 0; i < pads.length; i++) {
+    addInstance(models.lilypad, "pad", pads[i][0], 0, pads[i][1], pads[i][2]);
+  }
+  for (let z = -2; z <= 60; z += 2) {
+    addInstance(models.wall, "wall", -7.1, 0.85, z, 1);
+    addInstance(models.wall, "wall", 7.1, 0.85, z, 1);
+  }
+  placeLog();
+}
+
+function move(dx, dz) {
+  if (mode === "over") return;
+  if (mode === "cube") {
+    camera.x += dx;
+    camera.z = Math.min(-1.8, camera.z + dz);
+    return;
+  }
+  camera.x = Math.max(-5.6, Math.min(5.6, camera.x + dx));
+  camera.z += dz;
+  placeLog();
+  if (hitSomething()) splash();
+}
+
+function splash() {
+  mode = "over";
+}
+
+function floatForward() {
+  if (mode !== "river") return;
+  camera.z += 0.1;
+  if (camera.z > 54) camera.z = -1.2;
+  placeLog();
+  if (hitSomething()) splash();
+  draw();
+}
+
+document.addEventListener("keydown", function (e) {
+  let k = e.key;
+  if (k === "ArrowLeft" || k === "ArrowRight" || k === "ArrowUp") e.preventDefault();
+  if (k === "ArrowLeft") move(-0.5, 0);
+  else if (k === "ArrowRight") move(0.5, 0);
+  else if (k === "ArrowUp") move(0, 0.5);
+  else if (k === "Enter") buildRiver();
+  else if (k === "1" || k === "2" || k === "3") view = Number(k);
+  else return;
+  draw();
+});
+
+models.cube = parseObj(MODEL_SRC.cube);
+models.log = parseObj(MODEL_SRC.log);
+models.lilypad = parseObj(MODEL_SRC.lilypad);
+models.wall = parseObj(MODEL_SRC.wall);
+models.water = parseObj(MODEL_SRC.water);
+draw();
+setInterval(floatForward, 50);
+</script>
+</body>
+</html>
