@@ -15,16 +15,17 @@
 <header>
   <h1>Log Ride</h1>
   <div>Austin Heiss · <a href="https://github.com/austinheiss/pinhole-camera-project1cg">GitHub</a></div>
-  <p>Enter starts the ride and the log floats forward. Left/right steer, up speeds up. Hitting a lilypad or log ends the game, press Enter to go again. Lines behind the camera are skipped.</p>
-  <p>Views: 1 canvas wireframe 1600x1000, 2 my own lines on a 320x200 pixel grid, 3 filled triangles with a depth buffer on the 320x200 grid.</p>
-  <p id="info"></p>
+  <p>Enter starts the ride and the log floats forward. 
+  <p>Left and right arrows steer, up arrow speeds up. 
+  <p>Hitting a lilypad or log ends the game, press Enter to go again.</p>
+  <p>Lines behind the camera are skipped.</p>
+  <p>Press 1, 2, or 3 to switch views.</p>
 </header>
 <canvas id="canvas" width="1600" height="1000"></canvas>
 <script src="models/models.js"></script>
 <script>
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
-const info = document.getElementById("info");
 
 const W = 1600;
 const H = 1000;
@@ -168,7 +169,6 @@ function draw() {
     ctx.fillText("Game over", W / 2, H / 2);
     ctx.fillText("Press Enter", W / 2, H / 2 + 90);
   }
-  info.textContent = "Scene: " + mode + ". View " + view + ". Camera x " + camera.x.toFixed(1) + ", z " + camera.z.toFixed(1) + ".";
 }
 
 function placeLog() {
