@@ -7,13 +7,14 @@
   body { margin: 0; background: #050510; color: white; font-family: Arial, sans-serif; }
   header { position: absolute; top: 0; left: 0; right: 0; padding: 12px 16px; line-height: 1.4; }
   h1 { margin: 0; font-size: 22px; }
+  a { color: #9ecbff; }
   canvas { display: block; width: 100vw; height: 100vh; object-fit: contain; }
 </style>
 </head>
 <body>
 <header>
   <h1>Log Ride</h1>
-  <div>Austin Heiss</div>
+  <div>Austin Heiss · <a href="https://github.com/austinheiss/pinhole-camera-project1cg">GitHub</a></div>
   <p>Enter starts the ride and the log floats forward. Left/right steer, up speeds up. Hitting a lilypad or log ends the game, press Enter to go again. Lines behind the camera are skipped.</p>
   <p>Views: 1 canvas wireframe 1600x1000, 2 my own lines on a 320x200 pixel grid, 3 filled triangles with a depth buffer on the 320x200 grid.</p>
   <p id="info"></p>
